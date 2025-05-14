@@ -1,8 +1,7 @@
 import time
 from pygame.locals import *
 import pygame
-
-from combate2 import en_combate
+import random
 
 zona = 0
 
@@ -49,39 +48,189 @@ sprite_frame_number = 7
 last_change_frame_time = 0
 idle = False
 
-jugador_vida = 100
-enemigo_vida = 100
-jugador_resistencia = 100
-jugador_turno = False
-fase = "1"  # menu, precision, llave_ataque, llave_defensa, espera, enemigo
+def combate():
+    global zona  # Para poder salir del combate y regresar
+    pantalla = pygame.display.set_mode((640, 360))
+    fuente = pygame.font.SysFont(None, 24)
 
-ataques = {
-    "Jab": {"dano": (5, 10), "coste": 10},
-    "Gancho": {"dano": (8, 15), "coste": 15},
-    "Uppercut": {"dano": (10, 20), "coste": 20},
-    "Llave": {"coste": 25}
-}
-ataque_seleccionado = None
-mensaje = "\u00a1Tu turno! Elige un ataque."
+    fondo = pygame.image.load("assets/fight1.jpeg")
+    fondo = pygame.transform.scale(fondo, (640, 360))
 
-opciones = list(ataques.keys())
-menu_rects = [pygame.Rect(20, 250 + i * 25, 180, 20) for i in range(len(opciones))]
+    jugador_vida = 100
+    enemigo_vida = 100
+    jugador_resistencia = 100
+    jugador_turno = True
+    fase = "menu"
+
+    ataques = {
+        "Jab": {"dano": (5, 10), "coste": 10},
+        "Gancho": {"dano": (8, 15), "coste": 15},
+        "Uppercut": {"dano": (10, 20), "coste": 20},
+        "Llave": {"coste": 25}
+    }
+    ataque_seleccionado = None
+    mensaje = "¡Tu turno! Elige un ataque."
+    opciones = list(ataques.keys())
+    menu_rects = [pygame.Rect(20, 250 + i * 25, 180, 20) for i in range(len(opciones))]
+
+    barra_rect = pygame.Rect(200, 150, 240, 20)
+    zona_perfecta = pygame.Rect(barra_rect.centerx - 10, barra_rect.y, 20, barra_rect.height)
+    cursor_rect = pygame.Rect(barra_rect.left, barra_rect.y, 5, barra_rect.height)
+    cursor_vel = 5
+    cursor_moving = False
+
+    toques = 0
+    llave_tiempo = 2000
+    llave_timer_start = 0
+
+    def dibujar_texto(texto, x, y, color=(255, 255, 255)):
+        pantalla.blit(fuente.render(texto, True, color), (x, y))
+
+    def dibujar_barra(x, y, valor_actual, valor_max, ancho=150, alto=15, color_fondo=(200, 0, 0), color_llenado=(0, 200, 0)):
+        pygame.draw.rect(pantalla, color_fondo, (x, y, ancho, alto))
+        ancho_llenado = max(0, int(ancho * (valor_actual / valor_max)))
+        pygame.draw.rect(pantalla, color_llenado, (x, y, ancho_llenado, alto))
+
+    clock = pygame.time.Clock()
+    en_combate = True
+
+    while en_combate:
+        tiempo_actual = pygame.time.get_ticks()
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+
+            if fase == "menu" and jugador_turno and evento.type == KEYDOWN:
+                if evento.key in [K_1, K_2, K_3, K_4]:
+                    indice = [K_1, K_2, K_3, K_4].index(evento.key)
+                    if indice < len(opciones):
+                        nombre = opciones[indice]
+                        ataque = ataques[nombre]
+                        if jugador_resistencia >= ataque["coste"]:
+                            ataque_seleccionado = nombre
+                            jugador_resistencia -= ataque["coste"]
+                            if nombre == "Llave":
+                                toques = 0
+                                llave_timer_start = tiempo_actual
+                                fase = "llave_ataque"
+                                mensaje = "¡Pulsa ESPACIO rápido para hacer más daño!"
+                            else:
+                                fase = "precision"
+                                cursor_rect.left = barra_rect.left
+                                cursor_moving = True
+                                mensaje = "¡Presiona ESPACIO en el centro!"
+                        else:
+                            mensaje = "¡No tienes suficiente resistencia!"
+
+            elif fase == "precision" and evento.type == KEYDOWN and evento.key == K_SPACE:
+                cursor_moving = False
+                datos = ataques[ataque_seleccionado]
+                base_dano = random.randint(*datos["dano"])
+                if zona_perfecta.colliderect(cursor_rect):
+                    dano = int(base_dano * 1.5)
+                    mensaje = f"¡Golpe perfecto! {dano} daño."
+                else:
+                    dano = int(base_dano * 0.5)
+                    mensaje = f"¡Golpe débil! {dano} daño."
+                enemigo_vida -= dano
+                fase = "espera"
+                espera_inicio = tiempo_actual
+
+            elif fase in ["llave_ataque", "llave_defensa"] and evento.type == KEYDOWN and evento.key == K_SPACE:
+                toques += 1
+
+            elif evento.type == USEREVENT + 1 and fase == "enemigo":
+                jugador_resistencia = min(100, jugador_resistencia + 10)
+                jugador_turno = True
+                fase = "menu"
+                mensaje = "¡Tu turno! Elige un ataque."
+                pygame.time.set_timer(USEREVENT + 1, 0)
+
+        if fase == "precision" and cursor_moving:
+            cursor_rect.x += cursor_vel
+            if cursor_rect.right > barra_rect.right or cursor_rect.left < barra_rect.left:
+                cursor_vel *= -1
+
+        if fase == "llave_ataque" and tiempo_actual - llave_timer_start > llave_tiempo:
+            dano = min(30, int(toques * 1.5))
+            mensaje = f"¡Llave exitosa! {dano} daño."
+            enemigo_vida -= dano
+            fase = "espera"
+            espera_inicio = tiempo_actual
+
+        if fase == "llave_defensa" and tiempo_actual - llave_timer_start > llave_tiempo:
+            dano_base = random.randint(15, 30)
+            reduccion = min(toques * 1, dano_base)
+            dano_final = dano_base - reduccion
+            mensaje = f"¡Resistes la llave! Recibes {dano_final} daño."
+            jugador_vida -= dano_final
+            pygame.time.set_timer(USEREVENT + 1, 1000)
+            fase = "enemigo"
+
+        if fase == "espera" and tiempo_actual - espera_inicio > 1000:
+            if enemigo_vida > 0:
+                if random.random() < 0.3:
+                    ataque_seleccionado = "Llave"
+                    toques = 0
+                    llave_timer_start = tiempo_actual
+                    mensaje = "¡El enemigo te hace una llave! ¡Pulsa ESPACIO para defenderte!"
+                    fase = "llave_defensa"
+                else:
+                    ataque = random.choice(["Jab", "Gancho", "Uppercut"])
+                    base_dano = random.randint(*ataques[ataque]["dano"])
+                    jugador_vida -= base_dano
+                    mensaje = f"El enemigo usa {ataque}: {base_dano} daño."
+                    pygame.time.set_timer(USEREVENT + 1, 1000)
+                    fase = "enemigo"
+            else:
+                jugador_turno = True
+                fase = "menu"
+
+        pantalla.blit(fondo, (0, 0))
+        dibujar_texto("Tú", 20, 20)
+        dibujar_barra(60, 20, jugador_vida, 100)
+        dibujar_texto(f"RES: {jugador_resistencia}", 60, 45, (0, 100, 255))
+        dibujar_texto("Enemigo", 350, 20)
+        dibujar_barra(430, 20, enemigo_vida, 100)
+        dibujar_texto(mensaje, 20, 90, (180, 180, 180))
+
+        if fase == "menu":
+            for i, rect in enumerate(menu_rects):
+                pygame.draw.rect(pantalla, (180, 180, 180), rect)
+                nombre = opciones[i]
+                coste = ataques[nombre]["coste"]
+                texto = f"{i + 1}. {nombre} ({coste})"
+                dibujar_texto(texto, rect.x + 5, rect.y + 2, (0, 0, 0))
+
+        elif fase == "precision":
+            pygame.draw.rect(pantalla, (255, 255, 255), barra_rect, 2)
+            pygame.draw.rect(pantalla, (0, 200, 0), zona_perfecta)
+            pygame.draw.rect(pantalla, (0, 100, 255), cursor_rect)
+
+        elif fase in ["llave_ataque", "llave_defensa"]:
+            tiempo_restante = max(0, llave_tiempo - (tiempo_actual - llave_timer_start))
+            dibujar_texto(f"Pulsa ESPACIO rápido ({int(tiempo_restante / 1000)}s)", 200, 130)
+            dibujar_texto(f"Toques: {toques}", 260, 160)
+
+        if jugador_vida <= 0:
+            mensaje = "¡Has perdido!"
+            en_combate = False
+        elif enemigo_vida <= 0:
+            mensaje = "¡Has ganado!"
+            en_combate = False
+
+        pygame.display.update()
+        clock.tick(60)
+
+    pygame.time.delay(2000)
+    zona = 2  # Regresa a la zona de exploración
+
 
 def imprimir_pantalla_fons(image, x, y):
     # Imprime imagen de fondo:
     pantalla.blit(image, (x, y))
 
-barra_rect = pygame.Rect(200, 150, 240, 20)
-zona_perfecta = pygame.Rect(barra_rect.centerx - 10, barra_rect.y, 20, barra_rect.height)
-cursor_rect = pygame.Rect(barra_rect.left, barra_rect.y, 5, barra_rect.height)
-cursor_vel = 5
-cursor_moving = False
-
-toques = 0
-llave_tiempo = 2000
-llave_timer_start = 0
-
-en_combate = False
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -180,149 +329,14 @@ while True:
 
         # Comprobación de colisiones
         if player_rect.colliderect(area1_rect):
-
-            combate = True
+            combate()
 
         elif player_rect.colliderect(area2_rect):
-            combate = True
+            combate()
+
         elif player_rect.colliderect(area3_rect):
-            combate = True
+            combate()
 
-    while en_combate == True:
-        tiempo_actual = pygame.time.get_ticks()
-        print(com)
-        for evento in pygame.event.get():
-            if evento.type == QUIT:
-                pygame.quit()
-                exit()
-
-            if fase == "menu" and jugador_turno and evento.type == KEYDOWN:
-                if evento.key in [K_1, K_2, K_3, K_4]:
-                    indice = [K_1, K_2, K_3, K_4].index(evento.key)
-                    if indice < len(opciones):
-                        nombre = opciones[indice]
-                        ataque = ataques[nombre]
-                        if jugador_resistencia >= ataque["coste"]:
-                            ataque_seleccionado = nombre
-                            jugador_resistencia -= ataque["coste"]
-                            if nombre == "Llave":
-                                toques = 0
-                                llave_timer_start = tiempo_actual
-                                fase = "llave_ataque"
-                                mensaje = "\u00a1Pulsa ESPACIO r\u00e1pido para hacer m\u00e1s da\u00f1o!"
-                            else:
-                                fase = "precision"
-                                cursor_rect.left = barra_rect.left
-                                cursor_moving = True
-                                mensaje = "\u00a1Presiona ESPACIO en el centro!"
-                        else:
-                            mensaje = "\u00a1No tienes suficiente resistencia!"
-
-            elif fase == "precision" and evento.type == KEYDOWN and evento.key == K_SPACE:
-                cursor_moving = False
-                datos = ataques[ataque_seleccionado]
-                base_dano = random.randint(*datos["dano"])
-                if zona_perfecta.colliderect(cursor_rect):
-                    dano = int(base_dano * 1.5)
-                    mensaje = f"\u00a1Golpe perfecto! {dano} da\u00f1o."
-                else:
-                    dano = int(base_dano * 0.5)
-                    mensaje = f"\u00a1Golpe d\u00e9bil! {dano} da\u00f1o."
-                enemigo_vida -= dano
-                fase = "espera"
-                espera_inicio = tiempo_actual
-
-            elif fase in ["llave_ataque", "llave_defensa"] and evento.type == KEYDOWN and evento.key == K_SPACE:
-                toques += 1
-
-            elif evento.type == USEREVENT + 1 and fase == "enemigo":
-                jugador_resistencia = min(100, jugador_resistencia + 10)
-                jugador_turno = True
-                fase = "menu"
-                mensaje = "\u00a1Tu turno! Elige un ataque."
-                pygame.time.set_timer(USEREVENT + 1, 0)
-
-        if fase == "precision" and cursor_moving:
-            cursor_rect.x += cursor_vel
-            if cursor_rect.right > barra_rect.right or cursor_rect.left < barra_rect.left:
-                cursor_vel *= -1
-
-        if fase == "llave_ataque" and tiempo_actual - llave_timer_start > llave_tiempo:
-            dano = min(30, int(toques * 1.5))
-            mensaje = f"\u00a1Llave exitosa! {dano} da\u00f1o."
-            enemigo_vida -= dano
-            fase = "espera"
-            espera_inicio = tiempo_actual
-
-        if fase == "llave_defensa" and tiempo_actual - llave_timer_start > llave_tiempo:
-            dano_base = random.randint(15, 30)
-            reduccion = min(toques * 1, dano_base)
-            dano_final = dano_base - reduccion
-            mensaje = f"\u00a1Resistes la llave! Recibes {dano_final} da\u00f1o."
-            jugador_vida -= dano_final
-            pygame.time.set_timer(USEREVENT + 1, 1000)
-            fase = "enemigo"
-
-        if fase == "espera" and tiempo_actual - espera_inicio > 1000:
-            if enemigo_vida > 0:
-                if random.random() < 0.3:
-                    ataque_seleccionado = "Llave"
-                    toques = 0
-                    llave_timer_start = tiempo_actual
-                    mensaje = "\u00a1El enemigo te hace una llave! \u00a1Pulsa ESPACIO para defenderte!"
-                    fase = "llave_defensa"
-                else:
-                    ataque = random.choice(["Jab", "Gancho", "Uppercut"])
-                    base_dano = random.randint(*ataques[ataque]["dano"])
-                    jugador_vida -= base_dano
-                    mensaje = f"El enemigo usa {ataque}: {base_dano} da\u00f1o."
-                    pygame.time.set_timer(USEREVENT + 1, 1000)
-                    fase = "enemigo"
-            else:
-                jugador_turno = True
-                fase = "menu"
-
-        pantalla.blit(fondo, (0, 0))
-
-        dibujar_texto("T\u00fa", 20, 20)
-        dibujar_barra(60, 20, jugador_vida, 100)
-        dibujar_texto(f"RES: {jugador_resistencia}", 60, 45, AZUL)
-
-        dibujar_texto("Enemigo", 350, 20)
-        dibujar_barra(430, 20, enemigo_vida, 100)
-
-        dibujar_texto(mensaje, 20, 90, GRIS)
-
-        if fase == "menu":
-            for i, rect in enumerate(menu_rects):
-                pygame.draw.rect(pantalla, GRIS, rect)
-                nombre = opciones[i]
-                coste = ataques[nombre]["coste"]
-                texto = f"{i + 1}. {nombre} ({coste})"
-                dibujar_texto(texto, rect.x + 5, rect.y + 2, NEGRO)
-
-        elif fase == "precision":
-            pygame.draw.rect(pantalla, BLANCO, barra_rect, 2)
-            pygame.draw.rect(pantalla, VERDE, zona_perfecta)
-            pygame.draw.rect(pantalla, AZUL, cursor_rect)
-
-        elif fase in ["llave_ataque", "llave_defensa"]:
-            tiempo_restante = max(0, llave_tiempo - (tiempo_actual - llave_timer_start))
-            dibujar_texto(f"Pulsa ESPACIO r\u00e1pido ({int(tiempo_restante / 1000)}s)", 200, 130, BLANCO)
-            dibujar_texto(f"Toques: {toques}", 260, 160, BLANCO)
-
-        if jugador_vida <= 0:
-            mensaje = "\u00a1Has perdido!"
-            en_combate = False
-        elif enemigo_vida <= 0:
-            mensaje = "\u00a1Has ganado!"
-            en_combate = False
-
-        pygame.display.update()
-        clock.tick(60)
-
-    pygame.time.delay(3000)
-    pygame.quit()
 
     pygame.display.update()
     clock.tick(fps)
