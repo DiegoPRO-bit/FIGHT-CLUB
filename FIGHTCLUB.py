@@ -17,7 +17,7 @@ VIEW_HEIGHT = 360
 # Iniciamos pygame
 pygame.init()
 pantalla = pygame.display.set_mode((VIEW_WIDTH, VIEW_HEIGHT))
-pygame.display.set_caption("Arcade")
+pygame.display.set_caption("FIGHT CLUB DEMO")
 
 # Cargamos imagen de fondo
 background_image = 'assets/fons.jpeg'
@@ -110,6 +110,7 @@ def combate():
                         if jugador_resistencia >= ataque["coste"]:
                             ataque_seleccionado = nombre
                             jugador_resistencia -= ataque["coste"]
+
                             if nombre == "Llave":
                                 toques = 0
                                 llave_timer_start = tiempo_actual
@@ -120,11 +121,14 @@ def combate():
                                 cursor_rect.left = barra_rect.left
                                 cursor_moving = True
                                 mensaje = "¡Presiona ESPACIO en el centro!"
+
                         else:
                             mensaje = "¡No tienes suficiente resistencia!"
 
             elif fase == "precision" and evento.type == KEYDOWN and evento.key == K_SPACE:
                 cursor_moving = False
+                pygame.mixer.music.load('assets/punetazo.mp3')
+                pygame.mixer.music.play()
                 datos = ataques[ataque_seleccionado]
                 base_dano = random.randint(*datos["dano"])
                 if zona_perfecta.colliderect(cursor_rect):
@@ -219,12 +223,16 @@ def combate():
             ganar = pygame.image.load('assets/GAME OVER.png')
             imprimir_pantalla_fons(ganar, 0, 0)
             zona = 2
+            pygame.mixer.music.load('assets/aplausos.mp3')
+            pygame.mixer.music.play()
         elif enemigo_vida <= 0:
             mensaje = "¡Has ganado!"
             en_combate = False
             ganar = pygame.image.load('assets/win .jpeg')
             imprimir_pantalla_fons(ganar, 0, 0)
             zona = 2
+            pygame.mixer.music.load('assets/aplausos.mp3')
+            pygame.mixer.music.play()
         pygame.display.update()
         clock.tick(60)
 
@@ -246,13 +254,18 @@ while True:
         # Imprimimos la pantalla de inicio
         logo_image = pygame.image.load('assets/logojoc.png')
         imprimir_pantalla_fons(logo_image, 0, 0)
+        pygame.mixer.music.load('assets/50cent.mp3')
+        pygame.mixer.music.play()
 
         if keys[K_SPACE]:  # Cambiar al menú al presionar espacio
             zona = 1  # Ir al menú
             pygame.display.update()
     if zona == 3:
+        keys = pygame.key.get_pressed()
         CREDITS = pygame.image.load('assets/CREDITS.jpeg')
         imprimir_pantalla_fons(CREDITS, 0, 0)
+        if keys[K_SPACE]:  # Cambiar zona al presionar 1
+            zona = 1
 
     elif zona == 1:
         keys = pygame.key.get_pressed()
@@ -261,12 +274,16 @@ while True:
         imprimir_pantalla_fons(menu_image, 0, 0)
         if keys[K_1]:  # Cambiar zona al presionar 1
             zona = 2
+            pygame.mixer.music.load('assets/chillmusic.wav')
+            pygame.mixer.music.play()
         if keys[K_2]:  # Cambiar zona al presionar 2
             zona = 3
         if keys[K_3]:  # Salir al presionar 3
             pygame.quit()
 
     elif zona == 2:
+
+
         # Movimiento del jugador
         idle = True
         keys = pygame.key.get_pressed()
