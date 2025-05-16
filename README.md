@@ -17,4 +17,4 @@ Fletxes del teclat: Serveixen per moure’t pel mapa.
 
 Tecles 1, 2, 3 i 4: Cada tecla executa un atac diferent segons l'estil de lluita (cop de puny, puntada, grappling, submissió, etc.).
 
-Barra espaiadora (Espai): Serveix per mesurar el mal fa a l'hora de fer submissions com més cliques l'espai més mal farà l'atac i en el cas de colpejar hi haurà una barra de precisió i si l'encertes es realitzés més o menys mal.
+Barra espaiadora (Espai): Serveix per mesurar el mal fa a l'hora de fer submissions com més cliques l'espai més mal farà l'atac, també serveix per esquivar les submissions de l'enemic i en el cas de colpejar hi haurà una barra de precisió i si l'encertes es realitzés més o menys mal.
