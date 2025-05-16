@@ -216,19 +216,24 @@ def combate():
         if jugador_vida <= 0:
             mensaje = "¡Has perdido!"
             en_combate = False
+            ganar = pygame.image.load('assets/GAME OVER.png')
+            imprimir_pantalla_fons(ganar, 0, 0)
+            zona = 2
         elif enemigo_vida <= 0:
             mensaje = "¡Has ganado!"
             en_combate = False
-
+            ganar = pygame.image.load('assets/win .jpeg')
+            imprimir_pantalla_fons(ganar, 0, 0)
+            zona = 2
         pygame.display.update()
         clock.tick(60)
 
     pygame.time.delay(2000)
-    zona = 2  # Regresa a la zona de exploración
 
 
 def imprimir_pantalla_fons(image, x, y):
     # Imprime imagen de fondo:
+
     pantalla.blit(image, (x, y))
 
 while True:
@@ -245,13 +250,15 @@ while True:
         if keys[K_SPACE]:  # Cambiar al menú al presionar espacio
             zona = 1  # Ir al menú
             pygame.display.update()
+    if zona == 3:
+        CREDITS = pygame.image.load('assets/CREDITS.jpeg')
+        imprimir_pantalla_fons(CREDITS, 0, 0)
 
     elif zona == 1:
         keys = pygame.key.get_pressed()
         # Imprimimos el menú
         menu_image = pygame.image.load('assets/menu.png')
         imprimir_pantalla_fons(menu_image, 0, 0)
-
         if keys[K_1]:  # Cambiar zona al presionar 1
             zona = 2
         if keys[K_2]:  # Cambiar zona al presionar 2
@@ -330,12 +337,15 @@ while True:
         # Comprobación de colisiones
         if player_rect.colliderect(area1_rect):
             combate()
+            zona = 4
+            bg_x = max(bg_x + protagonist_speed, 0)
 
         elif player_rect.colliderect(area2_rect):
             combate()
-
+            zona = 4
         elif player_rect.colliderect(area3_rect):
             combate()
+            zona = 4
 
 
     pygame.display.update()
